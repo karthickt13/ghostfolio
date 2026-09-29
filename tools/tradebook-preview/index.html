@@ -17,7 +17,10 @@
       </div>
       <div class="topbar-actions">
         <button class="btn btn-ghost" id="sampleButton" type="button">
-          Load sample week
+          Load sample trades
+        </button>
+        <button class="btn btn-ghost" id="sampleHoldingsButton" type="button">
+          Load sample holdings
         </button>
         <button class="btn btn-ghost" id="resetButton" type="button">
           Reset portfolio
@@ -53,9 +56,10 @@
           </svg>
           <p class="dropzone-title">Drop the CSV here or click to select</p>
           <p class="dropzone-hint">
-            Ghostfolio template, Zerodha / Groww / Upstox / Angel One exports
-            — day-first dates, split charges and <code>RELIANCE-EQ</code>
-            symbols are understood
+            A weekly trade book (Ghostfolio template or a Zerodha / Groww /
+            Upstox / Angel One export) <strong>or</strong> a holdings summary
+            such as <code>PortFolioEqtSummary.csv</code> — day-first dates,
+            split charges and <code>RELIANCE-EQ</code> symbols are understood
           </p>
         </div>
 
@@ -79,6 +83,8 @@
           <h2>2 · Portfolio</h2>
           <span class="badge" id="holdingsCounter">0 holdings</span>
         </div>
+
+        <p class="snapshot-note" id="snapshotNote" hidden></p>
 
         <div class="kpis" id="kpis">
           <div class="kpi">

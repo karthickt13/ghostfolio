@@ -4,6 +4,13 @@ This guide turns Ghostfolio into a live tracker for an Indian equity
 portfolio (NSE / BSE) that is updated with a weekly upload of the shares
 bought or sold.
 
+Two kinds of files can be uploaded:
+
+| File                                           | Contains                                                        | Effect                                           |
+| ---------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------ |
+| **Trade book** (weekly)                        | One row per buy or sell of the week                             | Adds the trades as activities                    |
+| **Equity summary** (`PortFolioEqtSummary.csv`) | One row per holding with the quantity and the average buy price | Replaces the positions with the ones in the file |
+
 - **[Neon](https://neon.tech)** — the Postgres database that stores users,
   activities and market data (Prisma).
 - **[Supabase](https://supabase.com)** — login (Supabase Auth) and the
@@ -61,18 +68,18 @@ npm run database:seed               # optional: demo data
 ## 2. Supabase (login + file archive)
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. **Authentication** → *Providers*: enable **Email** (and optionally
-   **Google**). Under *URL Configuration* add the URL of your Ghostfolio
+2. **Authentication** → _Providers_: enable **Email** (and optionally
+   **Google**). Under _URL Configuration_ add the URL of your Ghostfolio
    instance as the site URL and as a redirect URL.
 3. **Storage** → create a bucket named `tradebooks` (private or public —
    the API writes with the service role key either way).
-4. Copy the values from *Project Settings → API*:
+4. Copy the values from _Project Settings → API_:
 
-| Environment variable        | Where to find it                                  |
-| --------------------------- | ------------------------------------------------- |
-| `SUPABASE_URL`              | Project URL (`https://<project>.supabase.co`)      |
-| `SUPABASE_ANON_KEY`         | Project API keys → `anon` `public`                 |
-| `SUPABASE_SERVICE_ROLE_KEY` | Project API keys → `service_role` (**secret!**)    |
+| Environment variable        | Where to find it                                |
+| --------------------------- | ----------------------------------------------- |
+| `SUPABASE_URL`              | Project URL (`https://<project>.supabase.co`)   |
+| `SUPABASE_ANON_KEY`         | Project API keys → `anon` `public`              |
+| `SUPABASE_SERVICE_ROLE_KEY` | Project API keys → `service_role` (**secret!**) |
 
 5. Enable the login in the environment:
 
@@ -139,6 +146,19 @@ start with `DEFAULT_CURRENCY`).
 week. The importer detects a trade book automatically and shows a preview
 with every activity before anything is written.
 
+### Upload a holdings summary
+
+Brokers also send an equity summary (`PortFolioEqtSummary.csv`) that lists
+every holding with its quantity and average buy price — no buy/sell rows.
+Uploading it (same dialog, or the CLI) replaces the positions with the ones
+in the file, which is the quickest way to make the tracker match the broker
+statement. See
+[`docs/examples/holdings-summary.csv`](./examples/holdings-summary.csv).
+
+Trades that are dated **after** the statement are still applied on top, so
+the weekly uploads continue to work after a sync. Trades dated on or before
+the statement are considered part of it and are not added twice.
+
 ### From the command line (or a cron job)
 
 ```bash
@@ -181,30 +201,51 @@ date,symbol,exchange,type,quantity,price,charges,account,orderId
 2026-09-21,RELIANCE,NSE,BUY,10,1420.50,22.40,Zerodha,2609210000123
 ```
 
-| Column     | Required | Description                                                       |
-| ---------- | -------- | ----------------------------------------------------------------- |
-| `date`     | yes      | `22-09-2026`, `22/09/2026`, `22-Sep-2026`, `2026-09-22`, ISO or Excel serial |
+| Column     | Required | Description                                                                          |
+| ---------- | -------- | ------------------------------------------------------------------------------------ |
+| `date`     | yes      | `22-09-2026`, `22/09/2026`, `22-Sep-2026`, `2026-09-22`, ISO or Excel serial         |
 | `symbol`   | yes      | `RELIANCE`, `RELIANCE-EQ`, `RELIANCE.NS` — the NSE/BSE suffix is added automatically |
-| `exchange` | no       | `NSE` (default) or `BSE`                                          |
-| `type`     | yes      | `BUY` / `SELL` (also `B`, `S`, `Purchase`, `Sale`)                 |
-| `quantity` | yes      | Number of shares                                                  |
-| `price`    | yes\*    | Price per share; \*derived from the trade value if missing         |
-| `charges`  | no       | Total charges (brokerage + STT + GST + stamp duty + ...)           |
-| `account`  | no       | Account name, e.g. `Zerodha`                                      |
-| `orderId`  | no       | Broker order id, used to detect duplicates                        |
+| `exchange` | no       | `NSE` (default) or `BSE`                                                             |
+| `type`     | yes      | `BUY` / `SELL` (also `B`, `S`, `Purchase`, `Sale`)                                   |
+| `quantity` | yes      | Number of shares                                                                     |
+| `price`    | yes\*    | Price per share; \*derived from the trade value if missing                           |
+| `charges`  | no       | Total charges (brokerage + STT + GST + stamp duty + ...)                             |
+| `account`  | no       | Account name, e.g. `Zerodha`                                                         |
+| `orderId`  | no       | Broker order id, used to detect duplicates                                           |
+
+### Holdings summary (equity summary)
+
+```csv
+Scrip Name,ISIN,Quantity,Avg Buy Price,LTP,Market Value
+RELIANCE,INE002A01018,10,1420.50,1466.30,14663.00
+```
+
+| Column             | Required | Description                                                                                       |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------------- |
+| `symbol`           | yes\*    | `RELIANCE`, `RELIANCE-EQ` — the NSE/BSE suffix is added                                           |
+| `isin`             | \*       | Used when the file has neither a symbol nor a company name                                        |
+| `name`             | \*       | Company name, used as the display name                                                            |
+| `quantity`         | yes      | Number of shares held                                                                             |
+| `averageUnitPrice` | no\*\*   | Average buy price; \*\*derived from the invested amount or, as a last resort, from the last price |
+| `lastPrice`        | no       | LTP / closing price of the file, used to value the position                                       |
+| `date`             | no       | Statement date (`As On Date`), defaults to today                                                  |
+
+Trade books are recognized by their transaction type column, equity
+summaries by the combination of symbol (or ISIN/company name) and quantity
+without a transaction type — so both can be dropped into the same dialog.
 
 Broker exports work without editing them. These column names are
-recognized (case and punctuation insensitive):
+recognized for trade books (case and punctuation insensitive):
 
-| Field     | Accepted column names                                                              |
-| --------- | ---------------------------------------------------------------------------------- |
-| date      | Trade Date, Order Execution Time, Trade Time, Transaction Date, Order Date           |
-| symbol    | Trading Symbol, Scrip, Scrip Name, Ticker, Instrument, Security                     |
-| type      | Buy/Sell, Transaction Type, Trade Type, Action, Side                                 |
-| quantity  | Traded Qty, Traded Quantity, Filled Qty, Shares, Units                               |
-| price     | Trade Price, Avg Price, Average Price, Execution Price, Rate                         |
-| charges   | Charges, Total Charges, Brokerage, STT, GST, Stamp Duty, SEBI Charges, Other Charges |
-| orderId   | Order ID, Order No, Trade ID, Transaction ID                                         |
+| Field    | Accepted column names                                                                |
+| -------- | ------------------------------------------------------------------------------------ |
+| date     | Trade Date, Order Execution Time, Trade Time, Transaction Date, Order Date           |
+| symbol   | Trading Symbol, Scrip, Scrip Name, Ticker, Instrument, Security                      |
+| type     | Buy/Sell, Transaction Type, Trade Type, Action, Side                                 |
+| quantity | Traded Qty, Traded Quantity, Filled Qty, Shares, Units                               |
+| price    | Trade Price, Avg Price, Average Price, Execution Price, Rate                         |
+| charges  | Charges, Total Charges, Brokerage, STT, GST, Stamp Duty, SEBI Charges, Other Charges |
+| orderId  | Order ID, Order No, Trade ID, Transaction ID                                         |
 
 If the file has no total charges column but separate ones (brokerage, STT,
 exchange transaction charges, GST, stamp duty, SEBI charges, ...), they are
@@ -251,6 +292,6 @@ npm run build:tradebook-preview
 npx serve tools/tradebook-preview
 ```
 
-Opens a page where a CSV can be dropped to see the parsed trades, the
-derived holdings and the profit — with the same parser the API uses, but
-without touching the database.
+Opens a page where a trade book **or** an equity summary can be dropped to
+see the parsed trades, the synced holdings and the profit — with the same
+parser the API uses, but without touching the database.

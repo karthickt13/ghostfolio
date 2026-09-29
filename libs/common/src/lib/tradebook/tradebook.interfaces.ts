@@ -1,4 +1,5 @@
 import type { Activity } from '@ghostfolio/common/interfaces';
+
 import type { Type as ActivityType } from '@prisma/client';
 
 export interface TradebookCsvRow {
@@ -44,6 +45,41 @@ export interface TradebookParseResult {
   skippedRows: number;
   trades: ParsedTrade[];
   warnings: string[];
+}
+
+export interface ParsedHolding {
+  /** Average buy price per share */
+  averageUnitPrice: number;
+  currency: string;
+  isin?: string;
+  /** Last traded price of the file, if it has one */
+  lastPrice?: number;
+  name?: string;
+  quantity: number;
+  /** Symbol as Ghostfolio resolves it (e.g. `RELIANCE.NS`) */
+  symbol: string;
+}
+
+export interface HoldingsParseResult {
+  currency: string;
+  /** Statement date of the file, if it has one */
+  date?: string;
+  detectedColumns?: Record<string, string>;
+  errors: TradebookParseError[];
+  holdings: ParsedHolding[];
+  /** `true` when the file looks like a holdings summary */
+  isHoldings: boolean;
+  /** Rows without a scrip (subtotals) or without a position */
+  skippedRows: number;
+  warnings: string[];
+}
+
+export interface ParseHoldingsCsvParams {
+  csvContent: string;
+  /** Currency used for the positions (default `INR`) */
+  defaultCurrency?: string;
+  /** Exchange used when the file has no exchange column (default `NSE`) */
+  defaultExchange?: string;
 }
 
 export interface ParseTradebookCsvParams {

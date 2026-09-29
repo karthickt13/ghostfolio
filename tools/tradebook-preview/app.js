@@ -10,6 +10,8 @@
 (function () {
   var STORAGE_KEY = 'ghostfolio.tradebook-preview';
   var parseTradebookCsv = window.GhostfolioTradebook.parseTradebookCsv;
+  var parseHoldingsCsv = window.GhostfolioTradebook.parseHoldingsCsv;
+  var isHoldingsCsv = window.GhostfolioTradebook.isHoldingsCsv;
   var getTradeSignature = window.GhostfolioTradebook.getTradeSignature;
 
   // Seeded last prices. In production these come from Yahoo Finance
@@ -34,6 +36,16 @@
     '25-09-2026,RELIANCE,NSE,SELL,4,1455.80,0.00,0.58,0.06,0.11,2609250000044'
   ].join('\n');
 
+  var SAMPLE_HOLDINGS_CSV = [
+    'Scrip Name,ISIN,Quantity,Avg Buy Price,LTP,Market Value',
+    'RELIANCE,INE002A01018,10,1420.50,1466.30,14663.00',
+    'TCS,INE467B01029,5,3890.10,3942.15,19710.75',
+    'INFY,INE009A01021,20,1532.65,1587.25,31745.00',
+    'HDFCBANK,INE040A01034,15,1685.25,1712.40,25686.00',
+    'ITC,INE154A01025,100,412.35,428.90,42890.00',
+    'TITAN,INE280A01028,6,3380.00,3450.75,20704.50'
+  ].join('\n');
+
   var state = loadState();
 
   var elements = {
@@ -52,6 +64,8 @@
     report: document.getElementById('report'),
     resetButton: document.getElementById('resetButton'),
     sampleButton: document.getElementById('sampleButton'),
+    sampleHoldingsButton: document.getElementById('sampleHoldingsButton'),
+    snapshotNote: document.getElementById('snapshotNote'),
     textarea: document.getElementById('csvText'),
     tradesCounter: document.getElementById('tradesCounter'),
     tradesEmpty: document.getElementById('tradesEmpty'),
@@ -100,12 +114,17 @@
     importCsv(SAMPLE_CSV, 'sample-week.csv');
   });
 
+  elements.sampleHoldingsButton.addEventListener('click', function () {
+    elements.textarea.value = SAMPLE_HOLDINGS_CSV;
+    importCsv(SAMPLE_HOLDINGS_CSV, 'PortFolioEqtSummary.csv');
+  });
+
   elements.parseTextButton.addEventListener('click', function () {
     importCsv(elements.textarea.value, 'pasted.csv');
   });
 
   elements.resetButton.addEventListener('click', function () {
-    state = { prices: {}, trades: [], uploads: [] };
+    state = { prices: {}, snapshot: null, trades: [], uploads: [] };
     saveState();
     elements.textarea.value = '';
     elements.report.hidden = true;
@@ -123,6 +142,15 @@
   }
 
   function importCsv(csvContent, fileName) {
+    if (isHoldingsCsv(csvContent)) {
+      importHoldings(csvContent, fileName);
+      return;
+    }
+
+    importTrades(csvContent, fileName);
+  }
+
+  function importTrades(csvContent, fileName) {
     var result = parseTradebookCsv({ csvContent: csvContent });
     var messages = [];
 
@@ -193,6 +221,76 @@
     render();
   }
 
+  /**
+   * A holdings summary (the equity summary of the broker) describes what is
+   * in the portfolio today. Uploading it replaces the positions: every later
+   * weekly trade book is applied on top of it.
+   */
+  function importHoldings(csvContent, fileName) {
+    var result = parseHoldingsCsv({ csvContent: csvContent });
+    var messages = [];
+
+    if (!result.isHoldings) {
+      messages.push({
+        text:
+          (result.errors[0] && result.errors[0].message) ||
+          'The file does not look like a holdings summary',
+        type: 'is-error'
+      });
+      renderReport(messages);
+      return;
+    }
+
+    result.errors.forEach(function (error) {
+      messages.push({
+        text: 'Row ' + error.rowNumber + ': ' + error.message,
+        type: 'is-error'
+      });
+    });
+
+    result.warnings.forEach(function (warning) {
+      messages.push({ text: warning, type: 'is-warning' });
+    });
+
+    var replaced = state.snapshot ? state.snapshot.holdings.length : 0;
+
+    result.holdings.forEach(function (holding) {
+      if (typeof holding.lastPrice === 'number' && holding.lastPrice > 0) {
+        state.prices[holding.symbol] = holding.lastPrice;
+      }
+    });
+
+    state.snapshot = {
+      date: result.date || new Date().toISOString().slice(0, 10),
+      fileName: fileName,
+      holdings: result.holdings
+    };
+
+    state.uploads.push({
+      duplicates: 0,
+      errors: result.errors.length,
+      fileName: fileName,
+      imported: result.holdings.length,
+      isSnapshot: true,
+      timestamp: new Date().toISOString()
+    });
+
+    saveState();
+
+    messages.unshift({
+      text:
+        fileName +
+        ': portfolio synced with ' +
+        result.holdings.length +
+        (result.holdings.length === 1 ? ' holding' : ' holdings') +
+        (replaced > 0 ? ' (replaced ' + replaced + ')' : ''),
+      type: result.holdings.length > 0 ? 'is-success' : 'is-warning'
+    });
+
+    renderReport(messages);
+    render();
+  }
+
   function renderReport(messages) {
     elements.report.hidden = false;
     elements.report.innerHTML = '';
@@ -209,12 +307,39 @@
   function render() {
     var portfolio = computePortfolio();
 
+    if (state.snapshot) {
+      var note =
+        'Positions synced from ' +
+        state.snapshot.fileName +
+        ' as of ' +
+        state.snapshot.date.slice(0, 10) +
+        ' · ' +
+        state.snapshot.holdings.length +
+        (state.snapshot.holdings.length === 1 ? ' holding' : ' holdings');
+
+      if (portfolio.supersededTrades > 0) {
+        note +=
+          ' · ' +
+          portfolio.supersededTrades +
+          (portfolio.supersededTrades === 1 ? ' trade' : ' trades') +
+          ' dated on or before ' +
+          state.snapshot.date.slice(0, 10) +
+          ' are part of the statement and are not added again';
+      } else {
+        note += ' · later trade books are applied on top';
+      }
+
+      elements.snapshotNote.hidden = false;
+      elements.snapshotNote.textContent = note;
+    } else {
+      elements.snapshotNote.hidden = true;
+    }
+
     elements.holdingsCounter.textContent =
       portfolio.holdings.length +
       (portfolio.holdings.length === 1 ? ' holding' : ' holdings');
     elements.tradesCounter.textContent =
-      state.trades.length +
-      (state.trades.length === 1 ? ' trade' : ' trades');
+      state.trades.length + (state.trades.length === 1 ? ' trade' : ' trades');
     elements.uploadCounter.textContent =
       state.uploads.length +
       (state.uploads.length === 1 ? ' upload' : ' uploads');
@@ -335,6 +460,18 @@
     var positions = {};
     var realized = 0;
     var charges = 0;
+    var supersededTrades = 0;
+    var snapshotDate = state.snapshot ? new Date(state.snapshot.date) : null;
+
+    // A holdings summary is the base: it states what the broker holds
+    if (state.snapshot) {
+      state.snapshot.holdings.forEach(function (holding) {
+        positions[holding.symbol] = {
+          cost: holding.quantity * holding.averageUnitPrice,
+          quantity: holding.quantity
+        };
+      });
+    }
 
     state.trades
       .slice()
@@ -342,12 +479,18 @@
         return new Date(a.date) - new Date(b.date);
       })
       .forEach(function (trade) {
+        charges += trade.charges;
+
+        // Trades up to the statement date are already in the summary
+        if (snapshotDate && new Date(trade.date) <= snapshotDate) {
+          supersededTrades++;
+          return;
+        }
+
         var position = (positions[trade.symbol] = positions[trade.symbol] || {
           cost: 0,
           quantity: 0
         });
-
-        charges += trade.charges;
 
         if (trade.type === 'BUY') {
           position.cost += trade.quantity * trade.unitPrice + trade.charges;
@@ -399,6 +542,7 @@
       invested: invested,
       marketValue: marketValue,
       realized: realized,
+      supersededTrades: supersededTrades,
       unrealized: marketValue - invested
     };
   }
@@ -476,6 +620,7 @@
 
         return {
           prices: parsed.prices || {},
+          snapshot: parsed.snapshot || null,
           trades: parsed.trades || [],
           uploads: parsed.uploads || []
         };
@@ -484,7 +629,7 @@
       // Ignore a broken state and start over
     }
 
-    return { prices: {}, trades: [], uploads: [] };
+    return { prices: {}, snapshot: null, trades: [], uploads: [] };
   }
 
   function saveState() {

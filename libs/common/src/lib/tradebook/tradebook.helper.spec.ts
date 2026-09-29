@@ -118,6 +118,12 @@ describe('TradebookHelper', () => {
       expect(parseIndianTradeDate(undefined)).toBeNull();
       expect(parseIndianTradeDate('not a date')).toBeNull();
     });
+
+    it('rejects dates that do not exist', () => {
+      expect(parseIndianTradeDate('31/02/2026')).toBeNull();
+      expect(parseIndianTradeDate('2026-02-31')).toBeNull();
+      expect(parseIndianTradeDate('32-13-2026')).toBeNull();
+    });
   });
 
   describe('parseIndianNumber', () => {

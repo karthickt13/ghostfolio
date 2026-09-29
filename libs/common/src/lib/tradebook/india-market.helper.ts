@@ -137,9 +137,12 @@ export function parseIndianTradeDate(
     const [, year, month, day, time] = isoMatch;
     const milliseconds = time ? parseTimeToMilliseconds(time) : 0;
 
-    return new Date(
-      Date.UTC(Number(year), Number(month) - 1, Number(day)) + milliseconds
-    );
+    return createUtcDate({
+      day: Number(day),
+      milliseconds,
+      month: Number(month),
+      year: Number(year)
+    });
   }
 
   // 22-Sep-2026, 22 Sep 2026, 22-SEP-26
@@ -154,10 +157,12 @@ export function parseIndianTradeDate(
     if (monthIndex > -1) {
       const milliseconds = time ? parseTimeToMilliseconds(time) : 0;
 
-      return new Date(
-        Date.UTC(expandYear(Number(year)), monthIndex, Number(day)) +
-          milliseconds
-      );
+      return createUtcDate({
+        day: Number(day),
+        milliseconds,
+        month: monthIndex + 1,
+        year: expandYear(Number(year))
+      });
     }
   }
 
@@ -170,10 +175,12 @@ export function parseIndianTradeDate(
     const [, day, month, year, time] = dayFirstMatch;
     const milliseconds = time ? parseTimeToMilliseconds(time) : 0;
 
-    return new Date(
-      Date.UTC(expandYear(Number(year)), Number(month) - 1, Number(day)) +
-        milliseconds
-    );
+    return createUtcDate({
+      day: Number(day),
+      milliseconds,
+      month: Number(month),
+      year: expandYear(Number(year))
+    });
   }
 
   // Last resort: let the runtime try (handles "Sep 22, 2026" etc.)
@@ -253,6 +260,32 @@ export function parseIndianTradeType(
   }
 
   return null;
+}
+
+function createUtcDate({
+  day,
+  milliseconds,
+  month,
+  year
+}: {
+  day: number;
+  milliseconds: number;
+  month: number;
+  year: number;
+}): Date | null {
+  const date = new Date(Date.UTC(year, month - 1, day) + milliseconds);
+
+  // Reject dates that do not exist (e.g. 31/02/2026), which the runtime
+  // would otherwise silently roll over into the next month
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
 }
 
 function expandYear(aYear: number): number {

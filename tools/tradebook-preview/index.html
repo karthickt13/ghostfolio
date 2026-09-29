@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ghostfolio · Weekly Trade Book Preview</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="dot"></span>
+        <div>
+          <h1>Weekly Trade Book Preview</h1>
+          <p>Indian equity portfolio · NSE / BSE · INR</p>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost" id="sampleButton" type="button">
+          Load sample week
+        </button>
+        <button class="btn btn-ghost" id="resetButton" type="button">
+          Reset portfolio
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="card">
+        <div class="card-header">
+          <h2>1 · Upload the trades of the week</h2>
+          <span class="badge" id="uploadCounter">0 uploads</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <input
+            accept=".csv,text/csv"
+            hidden
+            id="fileInput"
+            type="file"
+          />
+          <svg
+            aria-hidden="true"
+            height="32"
+            viewBox="0 0 24 24"
+            width="32"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+          >
+            <path d="M12 16V4m0 0L7 9m5-5 5 5" />
+            <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+          </svg>
+          <p class="dropzone-title">Drop the CSV here or click to select</p>
+          <p class="dropzone-hint">
+            Ghostfolio template, Zerodha / Groww / Upstox / Angel One exports
+            — day-first dates, split charges and <code>RELIANCE-EQ</code>
+            symbols are understood
+          </p>
+        </div>
+
+        <details class="details">
+          <summary>Or paste the CSV content</summary>
+          <textarea
+            id="csvText"
+            placeholder="date,symbol,exchange,type,quantity,price,charges,account,orderId&#10;2026-09-21,RELIANCE,NSE,BUY,10,1420.50,22.40,Zerodha,2609210000123"
+            rows="6"
+          ></textarea>
+          <button class="btn btn-primary" id="parseTextButton" type="button">
+            Parse pasted content
+          </button>
+        </details>
+
+        <div class="report" id="report" hidden></div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>2 · Portfolio</h2>
+          <span class="badge" id="holdingsCounter">0 holdings</span>
+        </div>
+
+        <div class="kpis" id="kpis">
+          <div class="kpi">
+            <span class="kpi-label">Invested</span>
+            <strong class="kpi-value" id="kpiInvested">₹0</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Market value</span>
+            <strong class="kpi-value" id="kpiValue">₹0</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Unrealized P&amp;L</span>
+            <strong class="kpi-value" id="kpiUnrealized">₹0</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Realized P&amp;L</span>
+            <strong class="kpi-value" id="kpiRealized">₹0</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Total return</span>
+            <strong class="kpi-value" id="kpiTotal">₹0</strong>
+          </div>
+          <div class="kpi">
+            <span class="kpi-label">Charges paid</span>
+            <strong class="kpi-value" id="kpiCharges">₹0</strong>
+          </div>
+        </div>
+
+        <p class="price-note">
+          Last prices are editable. In production they come from Yahoo Finance
+          (<code>RELIANCE.NS</code>, <code>TCS.BO</code>) and are refreshed by
+          the cron service of Ghostfolio — this preview has no backend, so the
+          prices are seeded.
+        </p>
+
+        <div class="table-wrapper">
+          <table id="holdingsTable">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th class="num">Quantity</th>
+                <th class="num">Avg buy price</th>
+                <th class="num">Last price</th>
+                <th class="num">Market value</th>
+                <th class="num">Unrealized P&amp;L</th>
+                <th class="num">Return</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="empty" id="holdingsEmpty">
+            No holdings yet. Upload a trade book to see the portfolio.
+          </p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>3 · Imported trades</h2>
+          <span class="badge" id="tradesCounter">0 trades</span>
+        </div>
+        <div class="table-wrapper">
+          <table id="tradesTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Symbol</th>
+                <th>Type</th>
+                <th class="num">Quantity</th>
+                <th class="num">Price</th>
+                <th class="num">Charges</th>
+                <th>Account</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p class="empty" id="tradesEmpty">No trades imported yet.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>
+        Parsed with <code>@ghostfolio/common/tradebook</code> — the same module
+        the API uses for <code>POST /api/v1/import/tradebook</code>. Nothing is
+        sent anywhere; the trades are stored in this browser.
+      </p>
+    </footer>
+
+    <script src="tradebook.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

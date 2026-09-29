@@ -11,8 +11,10 @@ import type {
   TradebookImportResponse
 } from '@ghostfolio/common/tradebook';
 
+import { UserWithSettings } from '@ghostfolio/common/types';
+
 import { HttpException, Injectable, Logger } from '@nestjs/common';
-import { Prisma, Type as ActivityType } from '@prisma/client';
+import { Type as ActivityType } from '@prisma/client';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
 import { ImportTradebookDto } from './import-tradebook.dto';
@@ -40,7 +42,7 @@ export class TradebookService {
     user
   }: ImportTradebookDto & {
     isDryRun?: boolean;
-    user: Prisma.UserGetPayload<{ include: { settings: true } }>;
+    user: UserWithSettings;
   }): Promise<TradebookImportResponse> {
     const { errors, isTradebook, trades, warnings } = parseTradebookCsv({
       account,
@@ -116,7 +118,7 @@ export class TradebookService {
         isDryRun,
         platformsDto: [],
         tagsDto: [],
-        user: user as any
+        user
       });
     }
 

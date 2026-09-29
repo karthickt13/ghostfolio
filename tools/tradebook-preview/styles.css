@@ -1,0 +1,363 @@
+:root {
+  --bg: #0f1115;
+  --bg-soft: #161a21;
+  --card: #1b202a;
+  --border: #2a3140;
+  --text: #eef1f6;
+  --muted: #939cad;
+  --accent: #4f8cff;
+  --positive: #2fbf71;
+  --negative: #ef5f6b;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f6f7fb;
+    --bg-soft: #ffffff;
+    --card: #ffffff;
+    --border: #e3e6ee;
+    --text: #1b202a;
+    --muted: #6b7385;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
+
+code {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: 0.85em;
+  padding: 0.05rem 0.3rem;
+}
+
+.topbar {
+  align-items: center;
+  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  gap: 0.85rem;
+}
+
+.brand h1 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.brand p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 0.15rem 0 0;
+}
+
+.dot {
+  background: linear-gradient(135deg, var(--accent), #7b5cff);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+  height: 0.7rem;
+  width: 0.7rem;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+main {
+  display: grid;
+  gap: 1.25rem;
+  margin: 0 auto;
+  max-width: 1080px;
+  padding: 1.5rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.card-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.card-header h2 {
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  margin: 0;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.badge {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+}
+
+.dropzone {
+  align-items: center;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone.is-active {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: var(--accent);
+}
+
+.dropzone-title {
+  color: var(--text);
+  font-weight: 600;
+  margin: 0.35rem 0 0;
+}
+
+.dropzone-hint {
+  font-size: 0.82rem;
+  margin: 0;
+  max-width: 46rem;
+}
+
+.details {
+  margin-top: 0.85rem;
+}
+
+.details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+textarea {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  margin-top: 0.6rem;
+  padding: 0.7rem;
+  width: 100%;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-soft);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.45rem 0.95rem;
+  transition: transform 0.1s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.report {
+  border-radius: 10px;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.report-message {
+  border-left: 3px solid var(--accent);
+  background: var(--bg-soft);
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.report-message.is-error {
+  border-left-color: var(--negative);
+}
+
+.report-message.is-warning {
+  border-left-color: #f0b429;
+}
+
+.report-message.is-success {
+  border-left-color: var(--positive);
+}
+
+.kpis {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.kpi {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem 0.9rem;
+}
+
+.kpi-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.kpi-value {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.positive {
+  color: var(--positive);
+}
+
+.negative {
+  color: var(--negative);
+}
+
+.price-note {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  width: 100%;
+}
+
+th {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 0.6rem 0.5rem;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+td {
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+  padding: 0.55rem 0.5rem;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+}
+
+.price-input {
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  padding: 0.25rem 0.4rem;
+  text-align: right;
+  width: 6.5rem;
+}
+
+.pill {
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.5rem;
+}
+
+.pill-buy {
+  background: color-mix(in srgb, var(--positive) 20%, transparent);
+  color: var(--positive);
+}
+
+.pill-sell {
+  background: color-mix(in srgb, var(--negative) 20%, transparent);
+  color: var(--negative);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+footer {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin: 0 auto;
+  max-width: 1080px;
+  padding: 0 1.5rem 2rem;
+}

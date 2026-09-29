@@ -128,7 +128,8 @@ export class GfLoginWithAccessTokenDialogComponent implements OnInit {
     }
 
     await this.runWithLoading(async () => {
-      const { email, password } = this.supabaseForm.value;
+      const email = this.supabaseForm.controls.email.value ?? '';
+      const password = this.supabaseForm.controls.password.value ?? '';
 
       const accessToken = await this.supabaseAuthService.signInWithPassword({
         configuration: this.getSupabaseConfiguration(),
@@ -146,7 +147,8 @@ export class GfLoginWithAccessTokenDialogComponent implements OnInit {
     }
 
     await this.runWithLoading(async () => {
-      const { email, password } = this.supabaseForm.value;
+      const email = this.supabaseForm.controls.email.value ?? '';
+      const password = this.supabaseForm.controls.password.value ?? '';
 
       const accessToken = await this.supabaseAuthService.signUp({
         configuration: this.getSupabaseConfiguration(),
@@ -168,8 +170,8 @@ export class GfLoginWithAccessTokenDialogComponent implements OnInit {
 
   private getSupabaseConfiguration(): SupabaseConfiguration {
     return {
-      anonKey: this.data.supabase?.anonKey,
-      url: this.data.supabase?.url
+      anonKey: this.data.supabase?.anonKey ?? '',
+      url: this.data.supabase?.url ?? ''
     };
   }
 

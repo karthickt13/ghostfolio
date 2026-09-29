@@ -109,6 +109,10 @@ Find answers to commonly asked questions about self-hosting Ghostfolio in our [F
 | `REDIS_PORT`                | `number`              |                       | The port where _Redis_ is running                                                                                                                                                                                             |
 | `REQUEST_TIMEOUT`           | `number` (optional)   | `2000`                | The timeout of network requests to data providers in milliseconds                                                                                                                                                             |
 | `ROOT_URL`                  | `string` (optional)   | `http://0.0.0.0:3333` | The root URL of the Ghostfolio application, used for generating callback URLs and external links.                                                                                                                             |
+| `SUPABASE_ANON_KEY`         | `string` (optional)   |                       | The _Supabase_ anonymous key, used by the client for Supabase Auth                                                                                                                                                            |
+| `SUPABASE_SERVICE_ROLE_KEY` | `string` (optional)   |                       | The _Supabase_ service role key, used to archive uploads in Supabase Storage                                                                                                                                                 |
+| `SUPABASE_STORAGE_BUCKET`   | `string` (optional)   | `tradebooks`          | The _Supabase_ Storage bucket that keeps the uploaded trade books                                                                                                                                                             |
+| `SUPABASE_URL`              | `string` (optional)   |                       | The URL of the _Supabase_ project, e.g. `https://<project>.supabase.co`                                                                                                                                                      |
 | `TRUST_PROXY`               | `string` (optional)   |                       | The [trust proxy](https://expressjs.com/en/guide/behind-proxies.html) setting of _Express.js_ to determine the client IP address for rate limiting, e.g. `1` if the Ghostfolio application runs behind a single reverse proxy |
 
 #### OpenID Connect OIDC (experimental)
@@ -116,6 +120,7 @@ Find answers to commonly asked questions about self-hosting Ghostfolio in our [F
 | Name                       | Type                  | Default Value                        | Description                                                                                          |
 | -------------------------- | --------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `ENABLE_FEATURE_AUTH_OIDC` | `boolean` (optional)  | `false`                              | Enables authentication via _OpenID Connect_                                                          |
+| `ENABLE_FEATURE_AUTH_SUPABASE` | `boolean` (optional)  | `false`               | Whether to enable sign in with _Supabase_ Auth                                                                                                                                                                              |
 | `OIDC_AUTHORIZATION_URL`   | `string` (optional)   |                                      | Manual override for the OIDC authorization endpoint (falls back to the discovery from the issuer)    |
 | `OIDC_CALLBACK_URL`        | `string` (optional)   | `${ROOT_URL}/api/auth/oidc/callback` | The OIDC callback URL                                                                                |
 | `OIDC_CLIENT_ID`           | `string`              |                                      | The OIDC client ID                                                                                   |
@@ -178,6 +183,10 @@ Ghostfolio is available for various home server systems, including [CasaOS](http
 ## Development
 
 For detailed information on the environment setup and development process, please refer to [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+## Indian Portfolio (Neon + Supabase)
+
+Track an NSE / BSE portfolio that is updated with a weekly upload of the shares bought or sold, backed by [Neon](https://neon.tech) (Postgres) and [Supabase](https://supabase.com) (login and upload archive). See [docs/india-setup.md](./docs/india-setup.md) for the setup, the CSV format and the weekly workflow.
 
 ## Public API
 

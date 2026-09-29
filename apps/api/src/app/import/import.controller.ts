@@ -25,6 +25,7 @@ import { DataSource } from '@prisma/client';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
 import { ImportDataDto } from './import-data.dto';
+import { ImportHoldingsDto } from './import-holdings.dto';
 import { ImportTradebookDto } from './import-tradebook.dto';
 import { ImportService } from './import.service';
 import { TradebookService } from './tradebook.service';
@@ -113,6 +114,56 @@ export class ImportController {
     try {
       return await this.tradebookService.importTradebook({
         ...importTradebookDto,
+        isDryRun,
+        user: this.request.user
+      } as any);
+    } catch (error) {
+      this.logger.error(error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        {
+          error: getReasonPhrase(StatusCodes.BAD_REQUEST),
+          message: [error.message]
+        },
+        StatusCodes.BAD_REQUEST
+      );
+    }
+  }
+
+  /**
+   * Reconciles the portfolio with a holdings summary of the broker
+   * (one row per holding instead of one row per trade).
+   *
+   * The difference between the statement and the portfolio is imported as
+   * adjustment activities, so uploading the same summary twice does not
+   * change anything the second time.
+   */
+  @Post('holdings')
+  @UseGuards(AuthGuard(['jwt', 'api-key']), HasPermissionGuard)
+  @HasPermission(permissions.createActivity)
+  @UseInterceptors(TransformDataSourceInResponseInterceptor)
+  public async importHoldings(
+    @Body() importHoldingsDto: ImportHoldingsDto,
+    @Query('dryRun') isDryRunParam = 'false'
+  ) {
+    const isDryRun = isDryRunParam === 'true';
+
+    if (
+      !hasPermission(this.request.user.permissions, permissions.createAccount)
+    ) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    try {
+      return await this.tradebookService.syncHoldings({
+        ...importHoldingsDto,
         isDryRun,
         user: this.request.user
       } as any);

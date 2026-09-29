@@ -398,3 +398,92 @@ function normalizeHeader(aHeader: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '');
 }
+
+/**
+ * Compares the positions of a holdings summary with the positions of the
+ * portfolio and returns the adjustments that make them match.
+ *
+ * - the statement has more shares -> a BUY adjustment at the average buy price
+ * - the statement has fewer shares -> a SELL adjustment at the last price
+ * - the quantities match -> no adjustment
+ *
+ * Positions that the portfolio holds but the statement does not contain are
+ * reported in `missing`, they are never closed silently.
+ */
+export function getPositionAdjustments({
+  fileName,
+  holdings,
+  positions,
+  statementDate
+}: {
+  fileName?: string;
+  holdings: ParsedHolding[];
+  /** Symbol -> quantity currently held */
+  positions: Record<string, number>;
+  statementDate: string;
+}): {
+  adjustments: PositionAdjustment[];
+  buyCount: number;
+  missing: string[];
+  sellCount: number;
+  unchangedCount: number;
+} {
+  const adjustments: PositionAdjustment[] = [];
+  const symbolsInStatement = new Set<string>();
+
+  let buyCount = 0;
+  let sellCount = 0;
+  let unchangedCount = 0;
+
+  for (const holding of holdings) {
+    symbolsInStatement.add(holding.symbol);
+
+    const currentQuantity = positions[holding.symbol] ?? 0;
+    const difference = roundToSix(holding.quantity - currentQuantity);
+
+    if (Math.abs(difference) < 0.000001) {
+      unchangedCount++;
+
+      continue;
+    }
+
+    if (difference > 0) {
+      buyCount++;
+    } else {
+      sellCount++;
+    }
+
+    adjustments.push({
+      currency: holding.currency,
+      date: statementDate,
+      fee: 0,
+      quantity: Math.abs(difference),
+      symbol: holding.symbol,
+      type: difference > 0 ? 'BUY' : 'SELL',
+      // Sells are valued at the last price of the statement, so the
+      // realized profit stays realistic
+      unitPrice:
+        difference > 0
+          ? holding.averageUnitPrice
+          : (holding.lastPrice ?? holding.averageUnitPrice),
+      comment: fileName ? `Adjustment from ${fileName}` : undefined
+    });
+  }
+
+  const missing = Object.keys(positions).filter((symbol) => {
+    return (
+      (positions[symbol] ?? 0) > 0.000001 && !symbolsInStatement.has(symbol)
+    );
+  });
+
+  return { adjustments, buyCount, missing, sellCount, unchangedCount };
+}
+
+function roundToSix(aValue: number): number {
+  return Math.round(aValue * 1e6) / 1e6;
+}
+
+/**
+ * `true` when the CSV headers look like a trade book, so the importer can
+ * pick the right parser without asking the user.
+ */

@@ -6,6 +6,7 @@
  *   npm run import:tradebook -- --file ./trades.csv
  *   npm run import:tradebook -- --file ./trades.csv --dry-run
  *   npm run import:tradebook -- --file ./trades.csv --account Zerodha --exchange NSE
+ *   npm run import:tradebook -- --file ./PortFolioEqtSummary.csv --holdings
  *
  * Configuration (or the matching command line flags):
  *   GHOSTFOLIO_URL    Base URL of the Ghostfolio instance, e.g. https://ghostfolio.example.com
@@ -14,7 +15,6 @@
  * Trades that were imported before are skipped, so the same file (or files
  * with overlapping weeks) can be uploaded more than once.
  */
-
 import { readFile } from 'node:fs/promises';
 import { basename, resolve } from 'node:path';
 
@@ -22,7 +22,10 @@ const args = parseArgs(process.argv.slice(2));
 
 const filePath = args['file'];
 const isDryRun = args['dry-run'] === 'true' || args['dryRun'] === 'true';
-const url = (args['url'] ?? process.env.GHOSTFOLIO_URL ?? '').replace(/\/$/, '');
+const url = (args['url'] ?? process.env.GHOSTFOLIO_URL ?? '').replace(
+  /\/$/,
+  ''
+);
 const token = args['token'] ?? process.env.GHOSTFOLIO_TOKEN;
 
 if (args['help']) {
@@ -37,7 +40,9 @@ if (!filePath) {
 }
 
 if (!url) {
-  console.error('Missing the URL of the Ghostfolio instance (--url or GHOSTFOLIO_URL)');
+  console.error(
+    'Missing the URL of the Ghostfolio instance (--url or GHOSTFOLIO_URL)'
+  );
   process.exit(1);
 }
 
@@ -46,19 +51,22 @@ if (!token) {
   process.exit(1);
 }
 
+const isHoldings = args['holdings'] === 'true';
+const endpoint = isHoldings ? 'holdings' : 'tradebook';
 const csvContent = await readFile(resolve(filePath), 'utf8');
 
 const response = await fetch(
-  `${url}/api/v1/import/tradebook?dryRun=${isDryRun}`,
+  `${url}/api/v1/import/${endpoint}?dryRun=${isDryRun}`,
   {
     body: JSON.stringify({
       account: args['account'],
+      closeMissingPositions: args['close-missing'] === 'true',
       csvContent,
       defaultExchange: args['exchange'],
       fileName: basename(filePath)
     }),
     headers: {
-      'Authorization': token.startsWith('Api-Key') ? token : `Bearer ${token}`,
+      Authorization: token.startsWith('Api-Key') ? token : `Bearer ${token}`,
       'Content-Type': 'application/json'
     },
     method: 'POST'
@@ -81,12 +89,74 @@ if (!response.ok) {
 const {
   activities = [],
   archiveUrl,
+  buyCount = 0,
   chargesTotal = 0,
   duplicateCount = 0,
   errors = [],
   importedCount = 0,
+  missing = [],
+  sellCount = 0,
+  statementDate,
+  unchangedCount = 0,
   warnings = []
 } = payload ?? {};
+
+if (isHoldings) {
+  console.log(
+    `${isDryRun ? 'Dry run' : 'Sync'} against ${statementDate?.slice(0, 10) ?? 'the statement'}: ` +
+      `${unchangedCount} ${
+        unchangedCount === 1 ? 'position matches' : 'positions match'
+      }, ${buyCount} to buy, ${sellCount} to sell`
+  );
+
+  if (missing.length > 0) {
+    console.log('');
+    console.log(
+      `Held in Ghostfolio but not in the statement: ${missing.join(', ')}`
+    );
+  }
+
+  if (warnings.length > 0) {
+    console.log('');
+    console.log('Warnings:');
+
+    for (const warning of warnings) {
+      console.log(`  - ${warning}`);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.log('');
+    console.log('Rows that could not be imported:');
+
+    for (const { message, rowNumber } of errors) {
+      console.log(`  - Row ${rowNumber}: ${message}`);
+    }
+  }
+
+  if (archiveUrl) {
+    console.log('');
+    console.log(`Archived upload: ${archiveUrl}`);
+  }
+
+  if (isDryRun) {
+    console.log('');
+    console.log('Preview of the adjustments:');
+    console.table(
+      activities.map(({ date, quantity, SymbolProfile, type, unitPrice }) => {
+        return {
+          date: new Date(date).toISOString().slice(0, 10),
+          symbol: SymbolProfile?.symbol,
+          type,
+          quantity,
+          unitPrice
+        };
+      })
+    );
+  }
+
+  process.exit(errors.length > 0 ? 1 : 0);
+}
 
 console.log(
   `${isDryRun ? 'Dry run' : 'Import'}: ${importedCount} ${
@@ -176,6 +246,8 @@ Options:
   --token <token>     Ghostfolio JWT or "Api-Key <key>" (or GHOSTFOLIO_TOKEN)
   --account <name>    Account name to assign the activities to, e.g. Zerodha
   --exchange <NSE|BSE> Exchange used when the file has no exchange column
+  --holdings          The file is a holdings summary (equity summary), not a trade book
+  --close-missing     With --holdings: also close positions missing from the statement
   --dry-run           Validate the file without writing anything
   --help              Show this help
 `);

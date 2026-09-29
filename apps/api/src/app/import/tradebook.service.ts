@@ -2,11 +2,15 @@ import { ImportService } from '@ghostfolio/api/app/import/import.service';
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { PrismaService } from '@ghostfolio/api/services/prisma/prisma.service';
 import { SupabaseService } from '@ghostfolio/api/services/supabase/supabase.service';
+import { DEFAULT_INDIAN_CURRENCY } from '@ghostfolio/common/tradebook';
 import {
+  getPositionAdjustments,
   getTradeSignature,
+  parseHoldingsCsv,
   parseTradebookCsv
 } from '@ghostfolio/common/tradebook';
 import type {
+  HoldingsSyncResponse,
   ParsedTrade,
   TradebookImportResponse
 } from '@ghostfolio/common/tradebook';
@@ -14,9 +18,10 @@ import type {
 import { UserWithSettings } from '@ghostfolio/common/types';
 
 import { HttpException, Injectable, Logger } from '@nestjs/common';
-import { Type as ActivityType } from '@prisma/client';
+import { DataSource, Type as ActivityType } from '@prisma/client';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
+import { ImportHoldingsDto } from './import-holdings.dto';
 import { ImportTradebookDto } from './import-tradebook.dto';
 
 /**
@@ -153,6 +158,158 @@ export class TradebookService {
   }
 
   /**
+   * Reconciles the portfolio with a holdings summary of the broker
+   * (`PortFolioEqtSummary.csv`).
+   *
+   * For every position in the file the quantity is compared with the
+   * quantity Ghostfolio holds. The difference is imported as one
+   * adjustment activity, so the portfolio ends up matching the statement:
+   *
+   * - the broker has more shares -> a BUY adjustment
+   * - the broker has fewer shares -> a SELL adjustment (at the last price)
+   * - the quantities match -> nothing happens
+   *
+   * Running the sync twice with the same file creates nothing the second
+   * time, which makes it safe for a weekly job.
+   */
+  public async syncHoldings({
+    account,
+    accountId,
+    closeMissingPositions = false,
+    csvContent,
+    defaultExchange,
+    fileName,
+    isDryRun = false,
+    user
+  }: ImportHoldingsDto & {
+    isDryRun?: boolean;
+    user: UserWithSettings;
+  }): Promise<HoldingsSyncResponse> {
+    const { date, errors, holdings, isHoldings, warnings } = parseHoldingsCsv({
+      csvContent,
+      defaultExchange
+    });
+
+    if (!isHoldings) {
+      throw new HttpException(
+        {
+          error: getReasonPhrase(StatusCodes.BAD_REQUEST),
+          message: [
+            errors[0]?.message ??
+              'The file does not look like a holdings summary (a symbol or ISIN column and a quantity column are required)'
+          ]
+        },
+        StatusCodes.BAD_REQUEST
+      );
+    }
+
+    const accountIdToUse =
+      accountId ??
+      (account
+        ? (
+            await this.prismaService.account.findFirst({
+              select: { id: true },
+              where: { name: account, userId: user.id }
+            })
+          )?.id
+        : undefined);
+
+    const statementDate = date ? new Date(date) : new Date();
+    const positionsOfUser = await this.getPositions({ userId: user.id });
+
+    const { adjustments, buyCount, missing, sellCount, unchangedCount } =
+      getPositionAdjustments({
+        fileName,
+        holdings,
+        positions: Object.fromEntries(positionsOfUser.quantities),
+        statementDate: statementDate.toISOString()
+      });
+
+    const activitiesDto = adjustments.map((adjustment) => {
+      return {
+        ...adjustment,
+        type: adjustment.type as ActivityType,
+        accountId: accountIdToUse,
+        updateAccountBalance: false
+      };
+    });
+
+    if (missing.length > 0) {
+      warnings.push(
+        `${missing.length} ${
+          missing.length === 1 ? 'position is' : 'positions are'
+        } held in Ghostfolio but not part of the statement: ${missing.join(', ')}`
+      );
+    }
+
+    if (closeMissingPositions && missing.length > 0) {
+      for (const symbol of missing) {
+        const quantity = positionsOfUser.quantities.get(symbol) ?? 0;
+        const marketPrice = await this.getLastMarketPrice({
+          dataSource: positionsOfUser.dataSources.get(symbol),
+          symbol
+        });
+
+        if (!marketPrice) {
+          warnings.push(
+            `Could not close ${symbol}: no market price available`
+          );
+
+          continue;
+        }
+
+        activitiesDto.push({
+          currency: DEFAULT_INDIAN_CURRENCY,
+          date: statementDate.toISOString(),
+          fee: 0,
+          quantity,
+          symbol,
+          type: ActivityType.SELL,
+          unitPrice: marketPrice,
+          accountId: accountIdToUse,
+          comment: fileName ? `Adjustment from ${fileName}` : undefined,
+          updateAccountBalance: false
+        });
+      }
+    }
+
+    let activities: HoldingsSyncResponse['activities'] = [];
+
+    if (activitiesDto.length > 0) {
+      activities = await this.importService.import({
+        activitiesDto,
+        accountsWithBalancesDto: [],
+        assetProfilesWithMarketDataDto: [],
+        isDryRun,
+        platformsDto: [],
+        tagsDto: [],
+        user
+      });
+    }
+
+    const archiveUrl = isDryRun
+      ? undefined
+      : await this.supabaseService.archiveTradebook({
+          content: csvContent,
+          fileName,
+          userId: user.id
+        });
+
+    return {
+      activities,
+      archiveUrl,
+      buyCount,
+      errors,
+      isDryRun,
+      missing,
+      sellCount,
+      statementDate: statementDate.toISOString(),
+      unchangedCount,
+      warnings
+    };
+  }
+
+  /**
    * Fingerprints of the trades of the user that are already stored, so a
    * weekly upload can be replayed without creating duplicates.
    */
@@ -208,4 +365,66 @@ export class TradebookService {
       )
     );
   }
+
+  /** Quantity and data source of every position of the user */
+  private async getPositions({
+    userId
+  }: {
+    userId: string;
+  }): Promise<{
+    dataSources: Map<string, DataSource>;
+    quantities: Map<string, number>;
+  }> {
+    const orders = await this.prismaService.order.findMany({
+      select: {
+        quantity: true,
+        SymbolProfile: {
+          select: { dataSource: true, symbol: true }
+        },
+        type: true
+      },
+      where: { userId }
+    });
+
+    const quantities = new Map<string, number>();
+    const dataSources = new Map<string, DataSource>();
+
+    for (const { quantity, SymbolProfile, type } of orders) {
+      const symbol = SymbolProfile.symbol;
+      const currentQuantity = quantities.get(symbol) ?? 0;
+
+      quantities.set(
+        symbol,
+        type === 'BUY' ? currentQuantity + quantity : currentQuantity - quantity
+      );
+      dataSources.set(symbol, SymbolProfile.dataSource);
+    }
+
+    return { dataSources, quantities };
+  }
+
+  /** Last known market price of a symbol, used to close a position */
+  private async getLastMarketPrice({
+    dataSource,
+    symbol
+  }: {
+    dataSource?: DataSource;
+    symbol: string;
+  }): Promise<number | undefined> {
+    if (!dataSource) {
+      return undefined;
+    }
+
+    const marketData = await this.prismaService.marketData.findFirst({
+      orderBy: { date: 'desc' },
+      select: { marketPrice: true },
+      where: { dataSource, symbol }
+    });
+
+    return marketData?.marketPrice;
+  }
+}
+
+function roundToSix(aValue: number): number {
+  return Math.round(aValue * 1e6) / 1e6;
 }

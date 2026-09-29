@@ -60,6 +60,17 @@ export interface ParsedHolding {
   symbol: string;
 }
 
+export interface PositionAdjustment {
+  comment?: string;
+  currency: string;
+  date: string;
+  fee: number;
+  quantity: number;
+  symbol: string;
+  type: 'BUY' | 'SELL';
+  unitPrice: number;
+}
+
 export interface HoldingsParseResult {
   currency: string;
   /** Statement date of the file, if it has one */
@@ -90,6 +101,27 @@ export interface ParseTradebookCsvParams {
   defaultCurrency?: string;
   /** Exchange used when the file has no exchange column (default `NSE`) */
   defaultExchange?: string;
+}
+
+/** Result of an equity summary upload (`POST /api/v1/import/holdings`) */
+export interface HoldingsSyncResponse {
+  /** Adjustment activities that were created (or would be created) */
+  activities: Activity[];
+  /** Supabase Storage URL of the archived file, when configured */
+  archiveUrl?: string;
+  /** Adjustment buys created for positions that were too low */
+  buyCount: number;
+  errors: TradebookParseError[];
+  isDryRun: boolean;
+  /** Positions that Ghostfolio holds but the statement does not contain */
+  missing: string[];
+  /** Adjustment sells created for positions that were too high */
+  sellCount: number;
+  /** Statement date of the file */
+  statementDate: string;
+  /** Positions that already matched the statement */
+  unchangedCount: number;
+  warnings: string[];
 }
 
 /** Result of a weekly trade book upload (`POST /api/v1/import/tradebook`) */

@@ -1,5 +1,6 @@
 import {
   getHoldingsCsvTemplate,
+  getPositionAdjustments,
   isHoldingsCsv,
   parseHoldingsCsv
 } from './holdings.helper';
@@ -174,6 +175,136 @@ describe('HoldingsHelper', () => {
     it('does not detect unrelated files', () => {
       expect(isHoldingsCsv('name,value')).toBe(false);
       expect(isHoldingsCsv('')).toBe(false);
+    });
+  });
+
+  describe('getPositionAdjustments', () => {
+    const statementDate = '2026-09-29T00:00:00.000Z';
+
+    const holdings = [
+      {
+        averageUnitPrice: 1420.5,
+        currency: 'INR',
+        lastPrice: 1466.3,
+        quantity: 10,
+        symbol: 'RELIANCE.NS'
+      },
+      {
+        averageUnitPrice: 3890.1,
+        currency: 'INR',
+        lastPrice: 3942.15,
+        quantity: 5,
+        symbol: 'TCS.NS'
+      }
+    ];
+
+    it('buys what is missing in the portfolio', () => {
+      const result = getPositionAdjustments({
+        holdings,
+        positions: {},
+        statementDate
+      });
+
+      expect(result.buyCount).toEqual(2);
+      expect(result.sellCount).toEqual(0);
+      expect(result.unchangedCount).toEqual(0);
+      expect(result.adjustments).toEqual([
+        {
+          currency: 'INR',
+          date: statementDate,
+          fee: 0,
+          quantity: 10,
+          symbol: 'RELIANCE.NS',
+          type: 'BUY',
+          unitPrice: 1420.5
+        },
+        {
+          currency: 'INR',
+          date: statementDate,
+          fee: 0,
+          quantity: 5,
+          symbol: 'TCS.NS',
+          type: 'BUY',
+          unitPrice: 3890.1
+        }
+      ]);
+    });
+
+    it('sells the surplus at the last price', () => {
+      const result = getPositionAdjustments({
+        holdings,
+        positions: { 'RELIANCE.NS': 14 },
+        statementDate
+      });
+
+      expect(result.sellCount).toEqual(1);
+      expect(result.adjustments[0]).toMatchObject({
+        quantity: 4,
+        symbol: 'RELIANCE.NS',
+        type: 'SELL',
+        unitPrice: 1466.3
+      });
+    });
+
+    it('does nothing when the portfolio matches the statement', () => {
+      const result = getPositionAdjustments({
+        holdings,
+        positions: { 'RELIANCE.NS': 10, 'TCS.NS': 5 },
+        statementDate
+      });
+
+      expect(result.adjustments).toEqual([]);
+      expect(result.unchangedCount).toEqual(2);
+    });
+
+    it('reports positions that are missing from the statement', () => {
+      const result = getPositionAdjustments({
+        holdings,
+        positions: {
+          'INFY.NS': 20,
+          'RELIANCE.NS': 10,
+          'TCS.NS': 5,
+          'YESBANK.NS': 0
+        },
+        statementDate
+      });
+
+      expect(result.missing).toEqual(['INFY.NS']);
+      expect(result.unchangedCount).toEqual(2);
+    });
+
+    it('is idempotent: the adjustments make the next sync a no-op', () => {
+      const positions: Record<string, number> = {
+        'RELIANCE.NS': 3,
+        'TCS.NS': 9
+      };
+      const first = getPositionAdjustments({
+        fileName: 'PortFolioEqtSummary.csv',
+        holdings,
+        positions,
+        statementDate
+      });
+
+      for (const adjustment of first.adjustments) {
+        positions[adjustment.symbol] =
+          (positions[adjustment.symbol] ?? 0) +
+          (adjustment.type === 'BUY'
+            ? adjustment.quantity
+            : -adjustment.quantity);
+      }
+
+      const second = getPositionAdjustments({
+        holdings,
+        positions,
+        statementDate
+      });
+
+      expect(first.adjustments).toHaveLength(2);
+      expect(second.adjustments).toEqual([]);
+      expect(second.unchangedCount).toEqual(2);
+      expect(first.adjustments[0].comment).toEqual(
+        'Adjustment from PortFolioEqtSummary.csv'
+      );
     });
   });
 });

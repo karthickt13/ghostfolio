@@ -146,18 +146,47 @@ start with `DEFAULT_CURRENCY`).
 week. The importer detects a trade book automatically and shows a preview
 with every activity before anything is written.
 
-### Upload a holdings summary
+### Upload a holdings summary (equity summary)
 
 Brokers also send an equity summary (`PortFolioEqtSummary.csv`) that lists
 every holding with its quantity and average buy price — no buy/sell rows.
-Uploading it (same dialog, or the CLI) replaces the positions with the ones
-in the file, which is the quickest way to make the tracker match the broker
-statement. See
-[`docs/examples/holdings-summary.csv`](./examples/holdings-summary.csv).
+See [`docs/examples/holdings-summary.csv`](./examples/holdings-summary.csv).
+
+`POST /api/v1/import/holdings` **reconciles** the portfolio with the
+statement instead of adding the totals as new activities:
+
+| Situation                                             | Adjustment                                                                       |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| The statement has more shares than Ghostfolio         | A `BUY` for the difference, at the average buy price                             |
+| The statement has fewer shares                        | A `SELL` for the difference, at the last price of the file                       |
+| The quantities match                                  | Nothing                                                                          |
+| Ghostfolio holds a stock that is not in the statement | Reported in `missing`, never sold silently (use `--close-missing` to close them) |
+
+Because only the difference is imported, the sync is **idempotent**:
+running it twice with the same statement does nothing the second time.
+
+```bash
+# see what would change, write nothing
+npm run import:tradebook -- --file ./8507436600_PortFolioEqtSummary.csv --holdings --dry-run
+
+# apply it
+npm run import:tradebook -- --file ./8507436600_PortFolioEqtSummary.csv --holdings
+```
+
+```
+Dry run against 2026-09-29: 4 positions match, 1 to buy, 1 to sell
+Held in Ghostfolio but not in the statement: INFY.NS
+Preview of the adjustments:
+┌────────────┬──────────────┬──────┬──────────┬───────────┐
+│ date       │ symbol       │ type │ quantity │ unitPrice │
+├────────────┼──────────────┼──────┼──────────┼───────────┤
+│ 2026-09-29 │ RELIANCE.NS  │ BUY  │        2 │    1420.5 │
+│ 2026-09-29 │ TCS.NS       │ SELL │        3 │   3942.15 │
+└────────────┴──────────────┴──────┴──────────┴───────────┘
+```
 
 Trades that are dated **after** the statement are still applied on top, so
-the weekly uploads continue to work after a sync. Trades dated on or before
-the statement are considered part of it and are not added twice.
+the weekly uploads continue to work after a sync.
 
 ### From the command line (or a cron job)
 

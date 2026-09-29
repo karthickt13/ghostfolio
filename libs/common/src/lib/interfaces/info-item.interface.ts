@@ -15,4 +15,9 @@ export interface InfoItem {
   isReadOnlyMode?: boolean;
   statistics: Statistics;
   subscriptionOffer?: SubscriptionOffer;
+  /** Public Supabase configuration, only set when Supabase Auth is enabled */
+  supabase?: {
+    anonKey: string;
+    url: string;
+  };
 }

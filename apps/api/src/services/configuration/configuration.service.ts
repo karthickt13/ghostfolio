@@ -2,6 +2,7 @@ import { environment } from '@ghostfolio/api/environments/environment';
 import { Environment } from '@ghostfolio/api/services/interfaces/environment.interface';
 import {
   CACHE_TTL_NO_CACHE,
+  DEFAULT_CURRENCY,
   DEFAULT_HOST,
   DEFAULT_PORT,
   DEFAULT_PROCESSOR_GATHER_ASSET_PROFILE_CONCURRENCY,
@@ -54,6 +55,7 @@ export class ConfigurationService {
       API_KEY_OPEN_FIGI: str({ default: '' }),
       API_KEY_RAPID_API: str({ default: '' }),
       CACHE_QUOTES_TTL: num({ default: ms('1 minute') }),
+      DEFAULT_CURRENCY: str({ default: DEFAULT_CURRENCY }),
       CACHE_TTL: num({ default: CACHE_TTL_NO_CACHE }),
       DATA_SOURCE_EXCHANGE_RATES: str({ default: DataSource.YAHOO }),
       DATA_SOURCE_FEAR_AND_GREED_INDEX_STOCKS: str({
@@ -68,6 +70,7 @@ export class ConfigurationService {
       }),
       ENABLE_FEATURE_AUTH_GOOGLE: bool({ default: false }),
       ENABLE_FEATURE_AUTH_OIDC: bool({ default: false }),
+      ENABLE_FEATURE_AUTH_SUPABASE: bool({ default: false }),
       ENABLE_FEATURE_AUTH_TOKEN: bool({ default: true }),
       ENABLE_FEATURE_CRON: bool({ default: true }),
       ENABLE_FEATURE_FEAR_AND_GREED_INDEX: bool({ default: false }),
@@ -138,6 +141,10 @@ export class ConfigurationService {
         default: environment.rootUrl
       }),
       STRIPE_SECRET_KEY: str({ default: '' }),
+      SUPABASE_ANON_KEY: str({ default: '' }),
+      SUPABASE_SERVICE_ROLE_KEY: str({ default: '' }),
+      SUPABASE_STORAGE_BUCKET: str({ default: 'tradebooks' }),
+      SUPABASE_URL: str({ default: '' }),
       TRUST_PROXY: trustProxy({ default: '' }),
       TWITTER_ACCESS_TOKEN: str({ default: 'dummyAccessToken' }),
       TWITTER_ACCESS_TOKEN_SECRET: str({ default: 'dummyAccessTokenSecret' }),

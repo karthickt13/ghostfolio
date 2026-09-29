@@ -12,6 +12,7 @@ import { FetchService } from '@ghostfolio/api/services/fetch/fetch.service';
 import { PrismaModule } from '@ghostfolio/api/services/prisma/prisma.module';
 import { PropertyModule } from '@ghostfolio/api/services/property/property.module';
 import { PortfolioSnapshotQueueModule } from '@ghostfolio/api/services/queues/portfolio-snapshot/portfolio-snapshot.module';
+import { SupabaseModule } from '@ghostfolio/api/services/supabase/supabase.module';
 
 import { Logger, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
@@ -40,6 +41,7 @@ import { OidcStrategy } from './oidc.strategy';
     PropertyModule,
     RedisCacheModule,
     SubscriptionModule,
+    SupabaseModule,
     UserModule
   ],
   providers: [

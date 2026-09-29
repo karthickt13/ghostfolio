@@ -57,6 +57,36 @@ export class AuthController {
     }
   }
 
+  /**
+   * Exchanges a Supabase access token (issued by Supabase Auth in the
+   * browser) for a Ghostfolio JWT.
+   */
+  @Post('supabase')
+  @UseGuards(CustomThrottlerGuard)
+  public async supabaseLogin(
+    @Body() body: { accessToken: string }
+  ): Promise<OAuthResponse> {
+    if (!this.configurationService.get('ENABLE_FEATURE_AUTH_SUPABASE')) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    try {
+      const authToken = await this.authService.validateSupabaseLogin(
+        body.accessToken
+      );
+
+      return { authToken };
+    } catch {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
+      );
+    }
+  }
+
   @Get('google')
   @UseGuards(AuthGuard('google'))
   public googleLogin() {

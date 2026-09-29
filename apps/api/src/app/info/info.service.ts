@@ -7,6 +7,7 @@ import { DataProviderService } from '@ghostfolio/api/services/data-provider/data
 import { ExchangeRateDataService } from '@ghostfolio/api/services/exchange-rate-data/exchange-rate-data.service';
 import { MarketDataService } from '@ghostfolio/api/services/market-data/market-data.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
+import { SupabaseService } from '@ghostfolio/api/services/supabase/supabase.service';
 import {
   DEFAULT_CURRENCY,
   ghostfolioFearAndGreedIndexSymbolStocks,
@@ -42,6 +43,7 @@ export class InfoService {
     private readonly propertyService: PropertyService,
     private readonly redisCacheService: RedisCacheService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly supabaseService: SupabaseService,
     private readonly userService: UserService
   ) {}
 
@@ -59,6 +61,19 @@ export class InfoService {
 
     if (this.configurationService.get('ENABLE_FEATURE_AUTH_OIDC')) {
       globalPermissions.push(permissions.enableAuthOidc);
+    }
+
+    if (
+      this.configurationService.get('ENABLE_FEATURE_AUTH_SUPABASE') &&
+      this.supabaseService.isAuthEnabled() &&
+      this.supabaseService.getUrl()
+    ) {
+      globalPermissions.push(permissions.enableAuthSupabase);
+
+      info.supabase = {
+        anonKey: this.supabaseService.getAnonKey(),
+        url: this.supabaseService.getUrl()
+      };
     }
 
     if (this.configurationService.get('ENABLE_FEATURE_AUTH_TOKEN')) {

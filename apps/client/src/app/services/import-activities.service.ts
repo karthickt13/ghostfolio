@@ -11,6 +11,11 @@ import {
   parseDate as parseDateHelper
 } from '@ghostfolio/common/helper';
 import { Activity } from '@ghostfolio/common/interfaces';
+import {
+  isTradebookCsv,
+  parseTradebookCsv
+} from '@ghostfolio/common/tradebook';
+import type { ParsedTrade } from '@ghostfolio/common/tradebook';
 
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
@@ -52,6 +57,11 @@ export class ImportActivitiesService {
     activities: Activity[];
     assetProfiles: CreateAssetProfileWithMarketDataDto[];
   }> {
+    if (isTradebookCsv(fileContent)) {
+      // Weekly trade book of an Indian broker (or the Ghostfolio template)
+      return this.importTradebookCsv({ fileContent, isDryRun, userAccounts });
+    }
+
     const content = csvToJson<Record<string, unknown>>(fileContent, {
       dynamicTyping: true,
       header: true,
@@ -135,6 +145,52 @@ export class ImportActivitiesService {
     return { ...result, assetProfiles };
   }
 
+  private async importTradebookCsv({
+    fileContent,
+    isDryRun,
+    userAccounts
+  }: {
+    fileContent: string;
+    isDryRun: boolean;
+    userAccounts: Account[];
+  }): Promise<{
+    activities: Activity[];
+    assetProfiles: CreateAssetProfileWithMarketDataDto[];
+  }> {
+    const { errors, isTradebook, trades } = parseTradebookCsv({
+      csvContent: fileContent
+    });
+
+    if (!isTradebook) {
+      throw {
+        activities: [],
+        message: errors[0]?.message ?? 'Unexpected format'
+      };
+    }
+
+    if (errors.length > 0) {
+      throw {
+        activities: trades.map((trade) => {
+          return this.convertTradeToActivity({ trade, userAccounts });
+        }),
+        message: errors
+          .map(({ message, rowNumber }) => {
+            return `Row ${rowNumber}: ${message}`;
+          })
+          .join(', ')
+      };
+    }
+
+    const result = await this.importJson({
+      activities: trades.map((trade) => {
+        return this.convertTradeToActivity({ trade, userAccounts });
+      }),
+      isDryRun
+    });
+
+    return { ...result, assetProfiles: [] };
+  }
+
   public importJson({
     accounts,
     activities,
@@ -192,6 +248,30 @@ export class ImportActivitiesService {
       tags,
       activities: importData
     });
+  }
+
+  private convertTradeToActivity({
+    trade,
+    userAccounts
+  }: {
+    trade: ParsedTrade;
+    userAccounts: Account[];
+  }): CreateOrderDto {
+    return {
+      currency: trade.currency,
+      date: trade.date,
+      fee: trade.charges,
+      quantity: trade.quantity,
+      symbol: trade.symbol,
+      type: trade.type,
+      unitPrice: trade.unitPrice,
+      accountId: this.parseAccount({
+        item: { account: trade.account },
+        userAccounts
+      }),
+      comment: trade.orderId ? `Order ${trade.orderId}` : undefined,
+      updateAccountBalance: false
+    };
   }
 
   private convertToCreateOrderDto({

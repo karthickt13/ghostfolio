@@ -12,6 +12,7 @@ export interface Environment extends CleanedEnvAccessors {
   API_KEY_RAPID_API: string;
   CACHE_QUOTES_TTL: number;
   CACHE_TTL: number;
+  DEFAULT_CURRENCY: string;
   DATA_SOURCE_EXCHANGE_RATES: string;
   DATA_SOURCE_FEAR_AND_GREED_INDEX_STOCKS: string;
   DATA_SOURCE_IMPORT: string;
@@ -19,6 +20,7 @@ export interface Environment extends CleanedEnvAccessors {
   DATA_SOURCES_GHOSTFOLIO_DATA_PROVIDER: string[];
   ENABLE_FEATURE_AUTH_GOOGLE: boolean;
   ENABLE_FEATURE_AUTH_OIDC: boolean;
+  ENABLE_FEATURE_AUTH_SUPABASE: boolean;
   ENABLE_FEATURE_AUTH_TOKEN: boolean;
   ENABLE_FEATURE_CRON: boolean;
   ENABLE_FEATURE_FEAR_AND_GREED_INDEX: boolean;
@@ -59,6 +61,10 @@ export interface Environment extends CleanedEnvAccessors {
   REQUEST_TIMEOUT: number;
   ROOT_URL: string;
   STRIPE_SECRET_KEY: string;
+  SUPABASE_ANON_KEY: string;
+  SUPABASE_SERVICE_ROLE_KEY: string;
+  SUPABASE_STORAGE_BUCKET: string;
+  SUPABASE_URL: string;
   TRUST_PROXY: boolean | number | string;
   TWITTER_ACCESS_TOKEN: string;
   TWITTER_ACCESS_TOKEN_SECRET: string;

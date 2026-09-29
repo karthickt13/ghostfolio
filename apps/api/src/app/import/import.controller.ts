@@ -25,7 +25,9 @@ import { DataSource } from '@prisma/client';
 import { StatusCodes, getReasonPhrase } from 'http-status-codes';
 
 import { ImportDataDto } from './import-data.dto';
+import { ImportTradebookDto } from './import-tradebook.dto';
 import { ImportService } from './import.service';
+import { TradebookService } from './tradebook.service';
 
 @Controller('import')
 export class ImportController {
@@ -33,6 +35,7 @@ export class ImportController {
 
   public constructor(
     private readonly importService: ImportService,
+    private readonly tradebookService: TradebookService,
     @Inject(REQUEST) private readonly request: RequestWithUser
   ) {}
 
@@ -70,6 +73,55 @@ export class ImportController {
       return { activities };
     } catch (error) {
       this.logger.error(error);
+
+      throw new HttpException(
+        {
+          error: getReasonPhrase(StatusCodes.BAD_REQUEST),
+          message: [error.message]
+        },
+        StatusCodes.BAD_REQUEST
+      );
+    }
+  }
+
+  /**
+   * Weekly upload of a trade book (CSV) of shares bought or sold.
+   *
+   * Accepts the Ghostfolio template as well as the exports of most Indian
+   * brokers. Trades that have been imported before are skipped, so the same
+   * file can be uploaded twice by accident.
+   */
+  @Post('tradebook')
+  @UseGuards(AuthGuard(['jwt', 'api-key']), HasPermissionGuard)
+  @HasPermission(permissions.createActivity)
+  @UseInterceptors(TransformDataSourceInResponseInterceptor)
+  public async importTradebook(
+    @Body() importTradebookDto: ImportTradebookDto,
+    @Query('dryRun') isDryRunParam = 'false'
+  ) {
+    const isDryRun = isDryRunParam === 'true';
+
+    if (
+      !hasPermission(this.request.user.permissions, permissions.createAccount)
+    ) {
+      throw new HttpException(
+        getReasonPhrase(StatusCodes.FORBIDDEN),
+        StatusCodes.FORBIDDEN
+      );
+    }
+
+    try {
+      return await this.tradebookService.importTradebook({
+        ...importTradebookDto,
+        isDryRun,
+        user: this.request.user
+      } as any);
+    } catch (error) {
+      this.logger.error(error);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
 
       throw new HttpException(
         {

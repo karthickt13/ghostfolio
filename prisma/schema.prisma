@@ -390,6 +390,7 @@ enum Provider {
   GOOGLE
   INTERNET_IDENTITY
   OIDC
+  SUPABASE
 }
 
 enum Role {

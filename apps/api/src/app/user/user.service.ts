@@ -225,10 +225,17 @@ export class UserService {
       }),
       settings: {
         ...resolvedUserSettings,
-        baseCurrency: resolvedUserSettings.baseCurrency ?? DEFAULT_CURRENCY,
+        baseCurrency:
+          resolvedUserSettings.baseCurrency ?? this.getDefaultCurrency(),
         locale: resolvedUserSettings.locale ?? locale
       }
     };
+  }
+
+  private getDefaultCurrency(): string {
+    return (
+      this.configurationService.get('DEFAULT_CURRENCY') || DEFAULT_CURRENCY
+    );
   }
 
   public async hasAdmin() {
@@ -353,7 +360,8 @@ export class UserService {
 
     // Set default value for base currency
     if (!(user.settings.settings as UserSettings)?.baseCurrency) {
-      (user.settings.settings as UserSettings).baseCurrency = DEFAULT_CURRENCY;
+      (user.settings.settings as UserSettings).baseCurrency =
+        this.getDefaultCurrency();
     }
 
     // Set default value for date range

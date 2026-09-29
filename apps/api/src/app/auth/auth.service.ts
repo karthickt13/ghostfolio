@@ -1,6 +1,7 @@
 import { UserService } from '@ghostfolio/api/app/user/user.service';
 import { ConfigurationService } from '@ghostfolio/api/services/configuration/configuration.service';
 import { PropertyService } from '@ghostfolio/api/services/property/property.service';
+import { SupabaseService } from '@ghostfolio/api/services/supabase/supabase.service';
 
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -13,6 +14,7 @@ export class AuthService {
     private readonly configurationService: ConfigurationService,
     private readonly jwtService: JwtService,
     private readonly propertyService: PropertyService,
+    private readonly supabaseService: SupabaseService,
     private readonly userService: UserService
   ) {}
 
@@ -33,6 +35,24 @@ export class AuthService {
     }
 
     throw new Error();
+  }
+
+  /**
+   * Exchanges a Supabase access token for a Ghostfolio JWT. The Ghostfolio
+   * user is created on the first login, keyed by the Supabase user id.
+   */
+  public async validateSupabaseLogin(aAccessToken: string): Promise<string> {
+    const supabaseUser =
+      await this.supabaseService.verifyAccessToken(aAccessToken);
+
+    if (!supabaseUser) {
+      throw new Error('Invalid Supabase access token');
+    }
+
+    return this.validateOAuthLogin({
+      provider: 'SUPABASE',
+      thirdPartyId: supabaseUser.id
+    });
   }
 
   public async validateOAuthLogin({

@@ -10,6 +10,7 @@ import { ExchangeRateDataModule } from '@ghostfolio/api/services/exchange-rate-d
 import { MarketDataModule } from '@ghostfolio/api/services/market-data/market-data.module';
 import { PropertyModule } from '@ghostfolio/api/services/property/property.module';
 import { DataGatheringQueueModule } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.module';
+import { SupabaseModule } from '@ghostfolio/api/services/supabase/supabase.module';
 import { SymbolProfileModule } from '@ghostfolio/api/services/symbol-profile/symbol-profile.module';
 
 import { Module } from '@nestjs/common';
@@ -35,6 +36,7 @@ import { InfoService } from './info.service';
     PropertyModule,
     RedisCacheModule,
     SubscriptionModule,
+    SupabaseModule,
     SymbolProfileModule,
     TransformDataSourceInResponseModule,
     UserModule

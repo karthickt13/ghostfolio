@@ -58,6 +58,64 @@
           >
         </div>
       }
+
+      @if (data.hasPermissionToUseAuthSupabase && data.supabase) {
+        @if (
+          data.hasPermissionToUseAuthGoogle ||
+          data.hasPermissionToUseAuthOidc ||
+          data.hasPermissionToUseAuthToken
+        ) {
+          <div class="my-3 text-center text-muted" i18n>or</div>
+        }
+
+        <div class="d-flex flex-column" [formGroup]="supabaseForm">
+          <mat-form-field appearance="outline" class="without-hint w-100">
+            <mat-label i18n>Email</mat-label>
+            <input
+              formControlName="email"
+              matInput
+              type="email"
+              (keydown.enter)="onSignInWithSupabase(); $event.preventDefault()"
+            />
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="without-hint w-100">
+            <mat-label i18n>Password</mat-label>
+            <input
+              formControlName="password"
+              matInput
+              type="password"
+              (keydown.enter)="onSignInWithSupabase(); $event.preventDefault()"
+            />
+          </mat-form-field>
+          <button
+            color="primary"
+            mat-stroked-button
+            type="button"
+            [disabled]="isLoading || supabaseForm.invalid"
+            (click)="onSignInWithSupabase()"
+          >
+            <ng-container i18n>Sign in with Supabase</ng-container>
+          </button>
+          <button
+            class="mt-2"
+            mat-button
+            type="button"
+            [disabled]="isLoading || supabaseForm.invalid"
+            (click)="onSignUpWithSupabase()"
+          >
+            <ng-container i18n>Create account with Supabase</ng-container>
+          </button>
+          <button
+            class="mt-2"
+            mat-stroked-button
+            type="button"
+            [disabled]="isLoading"
+            (click)="onSignInWithSupabaseGoogle()"
+          >
+            <ng-container i18n>Sign in with Google (Supabase)</ng-container>
+          </button>
+        </div>
+      }
     </form>
   </div>
 </div>

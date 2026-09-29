@@ -856,6 +856,12 @@ export class DataService {
     });
   }
 
+  public loginWithSupabase(accessToken: string) {
+    return this.http.post<OAuthResponse>('/api/v1/auth/supabase', {
+      accessToken
+    });
+  }
+
   public postAccess(aAccess: CreateAccessDto) {
     return this.http.post<Access>('/api/v1/access', aAccess);
   }

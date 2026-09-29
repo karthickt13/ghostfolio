@@ -37,6 +37,7 @@ export const permissions = {
   deleteWatchlistItem: 'deleteWatchlistItem',
   enableAuthGoogle: 'enableAuthGoogle',
   enableAuthOidc: 'enableAuthOidc',
+  enableAuthSupabase: 'enableAuthSupabase',
   enableAuthToken: 'enableAuthToken',
   enableDataProviderGhostfolio: 'enableDataProviderGhostfolio',
   enableFearAndGreedIndex: 'enableFearAndGreedIndex',

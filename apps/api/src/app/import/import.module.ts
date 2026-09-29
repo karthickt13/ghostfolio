@@ -13,6 +13,7 @@ import { ExchangeRateDataModule } from '@ghostfolio/api/services/exchange-rate-d
 import { MarketDataModule } from '@ghostfolio/api/services/market-data/market-data.module';
 import { PrismaModule } from '@ghostfolio/api/services/prisma/prisma.module';
 import { DataGatheringQueueModule } from '@ghostfolio/api/services/queues/data-gathering/data-gathering.module';
+import { SupabaseModule } from '@ghostfolio/api/services/supabase/supabase.module';
 import { SymbolProfileModule } from '@ghostfolio/api/services/symbol-profile/symbol-profile.module';
 import { TagModule } from '@ghostfolio/api/services/tag/tag.module';
 
@@ -20,6 +21,7 @@ import { Module } from '@nestjs/common';
 
 import { ImportController } from './import.controller';
 import { ImportService } from './import.service';
+import { TradebookService } from './tradebook.service';
 
 @Module({
   controllers: [ImportController],
@@ -38,11 +40,12 @@ import { ImportService } from './import.service';
     PortfolioModule,
     PrismaModule,
     RedisCacheModule,
+    SupabaseModule,
     SymbolProfileModule,
     TagModule,
     TransformDataSourceInRequestModule,
     TransformDataSourceInResponseModule
   ],
-  providers: [ImportService]
+  providers: [ImportService, TradebookService]
 })
 export class ImportModule {}

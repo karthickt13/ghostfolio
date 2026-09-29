@@ -97,6 +97,7 @@ export class GfHeaderComponent implements OnChanges {
   protected hasImpersonationId: boolean;
   protected hasPermissionForAuthGoogle: boolean;
   protected hasPermissionForAuthOidc: boolean;
+  protected hasPermissionForAuthSupabase: boolean;
   protected hasPermissionForAuthToken: boolean;
   protected hasPermissionForSubscription: boolean;
   protected hasPermissionToAccessAdminControl: boolean;
@@ -183,6 +184,11 @@ export class GfHeaderComponent implements OnChanges {
     this.hasPermissionForAuthOidc = hasPermission(
       this.info()?.globalPermissions,
       permissions.enableAuthOidc
+    );
+
+    this.hasPermissionForAuthSupabase = hasPermission(
+      this.info()?.globalPermissions,
+      permissions.enableAuthSupabase
     );
 
     this.hasPermissionForAuthToken = hasPermission(
@@ -303,7 +309,9 @@ export class GfHeaderComponent implements OnChanges {
         accessToken: '',
         hasPermissionToUseAuthGoogle: this.hasPermissionForAuthGoogle,
         hasPermissionToUseAuthOidc: this.hasPermissionForAuthOidc,
+        hasPermissionToUseAuthSupabase: this.hasPermissionForAuthSupabase,
         hasPermissionToUseAuthToken: this.hasPermissionForAuthToken,
+        supabase: this.info()?.supabase,
         title: $localize`Sign in`
       },
       width: '30rem'
@@ -313,7 +321,10 @@ export class GfHeaderComponent implements OnChanges {
       .afterClosed()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((data) => {
-        if (data?.accessToken) {
+        if (data?.authToken) {
+          // The user signed in with Supabase
+          this.setToken(data.authToken);
+        } else if (data?.accessToken) {
           this.dataService
             .loginAnonymous(data?.accessToken)
             .pipe(
